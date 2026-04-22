@@ -1,0 +1,23 @@
+name: pfx2as-neighbor
+version: "${VERSION}"
+arch: amd64
+platform: linux
+maintainer: David Almgren <davidalmgren95@gmail.com>
+description: BGP daemon that periodically downloads the CAIDA RouteViews prefix-to-AS mapping and announces the prefixes to configured BGP neighbors.
+
+contents:
+  - src: ./build/pfx2as-neighbor
+    dst: /usr/bin/pfx2as-neighbor
+    file_info:
+      mode: 0755
+
+  - src: ./systemd/pfx2as-neighbor.service
+    dst: /lib/systemd/system/pfx2as-neighbor.service
+
+  - src: ./config/config.yaml
+    dst: /etc/pfx2as-neighbor/config.yaml
+    type: config
+
+scripts:
+  postinstall: ./scripts/postinstall.sh
+  preremove: ./scripts/preremove.sh

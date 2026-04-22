@@ -1,0 +1,12 @@
+[Unit]
+Description=pfx2as-neighbor BGP daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/pfx2as-neighbor -c /etc/pfx2as-neighbor/config.yaml
+Restart=on-failure
+RestartSec=5
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

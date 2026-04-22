@@ -1,0 +1,16 @@
+# binaries
+build/
+dist/
+
+# config (may contain passwords)
+config.yaml
+config.yml
+
+# editor
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# go
+vendor/
