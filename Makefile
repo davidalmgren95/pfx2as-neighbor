@@ -2,7 +2,7 @@ BINARY := pfx2as-neighbor
 INSTALL_BIN := /usr/local/bin/$(BINARY)
 INSTALL_CFG := /etc/$(BINARY)
 SERVICE_FILE := /etc/systemd/system/$(BINARY).service
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION := $(shell cat VERSION)
 
 .PHONY: build build-deb
 
