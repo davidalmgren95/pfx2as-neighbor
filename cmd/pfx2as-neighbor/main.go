@@ -18,9 +18,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var interval = 6 * time.Hour
-
-
 func updateRoutes(server *bgpserver.BgpServer) {
 	slog.Info("fetching latest CAIDA prefix2as data")
 
@@ -97,7 +94,16 @@ func main() {
 		slog.Error("failed to parse config", "path", *configPath, "err", err)
 		os.Exit(1)
 	}
-	slog.Info("config loaded", "asn", cfg.ASN, "router_id", cfg.RouterID, "neighbors", len(cfg.Neighbors))
+	interval := 6 * time.Hour
+	if cfg.UpdateInterval != "" {
+		d, err := time.ParseDuration(cfg.UpdateInterval)
+		if err != nil {
+			slog.Error("invalid update_interval, using default 6h", "value", cfg.UpdateInterval, "err", err)
+		} else {
+			interval = d
+		}
+	}
+	slog.Info("config loaded", "asn", cfg.ASN, "router_id", cfg.RouterID, "neighbors", len(cfg.Neighbors), "update_interval", interval)
 
 	server, err := bgpserver.Start(ctx, cfg)
 	if err != nil {

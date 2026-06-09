@@ -126,6 +126,7 @@ func addForcePrependPolicy(ctx context.Context, s *server.BgpServer, cfg *Config
 			Name: stmtName,
 			Conditions: &api.Conditions{
 				NeighborSet: &api.MatchSet{
+					Type: api.MatchSet_TYPE_ANY,
 					Name: setName,
 				},
 			},
