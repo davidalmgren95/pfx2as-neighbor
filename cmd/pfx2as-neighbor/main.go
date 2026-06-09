@@ -57,6 +57,7 @@ func updateRoutes(server *bgpserver.BgpServer) {
 	slog.Info("route update complete",
 		"added", added,
 		"deleted", deleted,
+		"unchanged", len(records)-added,
 		"active", len(server.ActivePrefixes()),
 		"errors", errs,
 	)

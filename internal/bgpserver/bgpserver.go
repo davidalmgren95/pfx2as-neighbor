@@ -13,9 +13,14 @@ import (
 	"github.com/osrg/gobgp/v4/pkg/server"
 )
 
+type pathEntry struct {
+	id   uuid.UUID
+	asns []uint32
+}
+
 type BgpServer struct {
 	s       *server.BgpServer
-	uuids   map[string]uuid.UUID
+	paths   map[string]pathEntry
 	nextHop string
 }
 
@@ -82,7 +87,7 @@ func Start(ctx context.Context, cfg *Config) (*BgpServer, error) {
 
 	return &BgpServer{
 		s:       s,
-		uuids:   make(map[string]uuid.UUID),
+		paths:   make(map[string]pathEntry),
 		nextHop: cfg.RouterID,
 	}, nil
 }
@@ -174,7 +179,28 @@ func (b *BgpServer) Stop(ctx context.Context) error {
 	return b.s.StopBgp(ctx, &api.StopBgpRequest{})
 }
 
+func asnsEqual(a, b []uint32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (b *BgpServer) AddPath(prefix string, asns []uint32) error {
+	if existing, ok := b.paths[prefix]; ok {
+		if asnsEqual(existing.asns, asns) {
+			return nil
+		}
+		if err := b.DeletePath(prefix); err != nil {
+			return fmt.Errorf("failed to replace path for %s: %v", prefix, err)
+		}
+	}
+
 	p, err := netip.ParsePrefix(prefix)
 	if err != nil {
 		return fmt.Errorf("invalid prefix %s: %v", prefix, err)
@@ -214,27 +240,31 @@ func (b *BgpServer) AddPath(prefix string, asns []uint32) error {
 		return fmt.Errorf("failed to add path for prefix %s: %v", prefix, err)
 	}
 
-	b.uuids[prefix] = resps[0].UUID
+	b.paths[prefix] = pathEntry{id: resps[0].UUID, asns: asns}
 	return nil
 }
 
 func (b *BgpServer) DeletePath(prefix string) error {
-	id, ok := b.uuids[prefix]
+	entry, ok := b.paths[prefix]
 	if !ok {
 		return fmt.Errorf("no path found for prefix: %s", prefix)
 	}
 
 	err := b.s.DeletePath(apiutil.DeletePathRequest{
-		UUIDs: []uuid.UUID{id},
+		UUIDs: []uuid.UUID{entry.id},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete path for prefix %s: %v", prefix, err)
 	}
 
-	delete(b.uuids, prefix)
+	delete(b.paths, prefix)
 	return nil
 }
 
-func (b *BgpServer) ActivePrefixes() map[string]uuid.UUID {
-	return b.uuids
+func (b *BgpServer) ActivePrefixes() map[string]struct{} {
+	out := make(map[string]struct{}, len(b.paths))
+	for k := range b.paths {
+		out[k] = struct{}{}
+	}
+	return out
 }
