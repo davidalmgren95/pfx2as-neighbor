@@ -9,27 +9,10 @@ BGP daemon that periodically downloads the CAIDA RouteViews prefix-to-AS mapping
 - Announces all prefixes to configured BGP neighbors via gobgp
 - On each refresh, removes stale prefixes and adds new ones without a full table flush
 
-## Configuration
-
-Copy `config.example` to `config.yaml` and edit:
-
-```yaml
-asn: 65001
-router_id: 1.1.1.1
-listen_port: 179
-hold_timer: 90
-update_interval: 6h
-
-neighbors:
-  - address: 2.2.2.2
-    asn: 65002
-    password: secret   # optional
-```
-
 ## Building
 
 ```
-GOOS=linux GOARCH=amd64 go build -o pfx2as-neighbor ./cmd/pfx2as-neighbor
+GOOS=linux GOARCH=amd64 go build -o ./build/pfx2as-neighbor ./cmd/pfx2as-neighbor
 ```
 
 Or use the Makefile:
@@ -38,23 +21,30 @@ Or use the Makefile:
 make build
 ```
 
-## Installation
+To build a .deb package:
 
 ```
-make install
+VERSION=$(VERSION) nfpm package --packager deb --target ./dist/
 ```
 
-This copies the binary to `/usr/local/bin` and sets up the systemd service. You will need to place your config at `/etc/pfx2as-neighbor/config.yaml` before starting.
-
-## Running as a systemd service
+Or use the Makefile:
 
 ```
-systemctl enable pfx2as-neighbor
-systemctl start pfx2as-neighbor
-systemctl status pfx2as-neighbor
+make build-deb
+
 ```
 
-Logs:
+## Installing the .deb package
+
+Install the .deb package with `dpkg -i` or `apt install ./dist/pfx2as-neighbor_*.deb`.
+
+Edit the configuration file at `/etc/pfx2as-neighbor/config.yaml` and the service by doing:
+
+```
+sudo systemctl restart pfx2as-neighbor
+```
+
+To view logs:
 
 ```
 journalctl -u pfx2as-neighbor -f
