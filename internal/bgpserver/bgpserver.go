@@ -191,29 +191,31 @@ func asnsEqual(a, b []uint32) bool {
 	return true
 }
 
-func (b *BgpServer) AddPath(prefix string, asns []uint32) error {
+// AddPath installs or updates a prefix. Returns (true, nil) if the path was
+// added or updated, (false, nil) if it was already current, or (false, err).
+func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
 	if existing, ok := b.paths[prefix]; ok {
 		if asnsEqual(existing.asns, asns) {
-			return nil
+			return false, nil
 		}
 		if err := b.DeletePath(prefix); err != nil {
-			return fmt.Errorf("failed to replace path for %s: %v", prefix, err)
+			return false, fmt.Errorf("failed to replace path for %s: %v", prefix, err)
 		}
 	}
 
 	p, err := netip.ParsePrefix(prefix)
 	if err != nil {
-		return fmt.Errorf("invalid prefix %s: %v", prefix, err)
+		return false, fmt.Errorf("invalid prefix %s: %v", prefix, err)
 	}
 
 	nlri, err := bgp.NewIPAddrPrefix(p)
 	if err != nil {
-		return fmt.Errorf("failed to create NLRI for prefix %s: %v", prefix, err)
+		return false, fmt.Errorf("failed to create NLRI for prefix %s: %v", prefix, err)
 	}
 
 	nextHop, err := bgp.NewPathAttributeNextHop(netip.MustParseAddr(b.nextHop))
 	if err != nil {
-		return fmt.Errorf("invalid next-hop %s: %v", b.nextHop, err)
+		return false, fmt.Errorf("invalid next-hop %s: %v", b.nextHop, err)
 	}
 
 	segType := uint8(bgp.BGP_ASPATH_ATTR_TYPE_SEQ)
@@ -237,11 +239,11 @@ func (b *BgpServer) AddPath(prefix string, asns []uint32) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to add path for prefix %s: %v", prefix, err)
+		return false, fmt.Errorf("failed to add path for prefix %s: %v", prefix, err)
 	}
 
 	b.paths[prefix] = pathEntry{id: resps[0].UUID, asns: asns}
-	return nil
+	return true, nil
 }
 
 func (b *BgpServer) DeletePath(prefix string) error {

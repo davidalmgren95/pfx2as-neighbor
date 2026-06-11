@@ -46,10 +46,11 @@ func updateRoutes(server *bgpserver.BgpServer) {
 		}
 	}
 	for prefix, asns := range records {
-		if err := server.AddPath(prefix, asns); err != nil {
+		changed, err := server.AddPath(prefix, asns)
+		if err != nil {
 			slog.Error("failed to add route", "prefix", prefix, "err", err)
 			errs++
-		} else {
+		} else if changed {
 			added++
 		}
 	}
@@ -57,7 +58,7 @@ func updateRoutes(server *bgpserver.BgpServer) {
 	slog.Info("route update complete",
 		"added", added,
 		"deleted", deleted,
-		"unchanged", len(records)-added,
+		"unchanged", len(records)-added-errs,
 		"active", len(server.ActivePrefixes()),
 		"errors", errs,
 	)
