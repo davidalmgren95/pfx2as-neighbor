@@ -26,6 +26,7 @@ func updateRoutes(server *bgpserver.BgpServer) {
 		slog.Error("failed to download prefix2as data", "err", err)
 		return
 	}
+	defer body.Close()
 
 	records, err := gzparser.Parse(body)
 	if err != nil {
