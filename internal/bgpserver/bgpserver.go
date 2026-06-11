@@ -242,8 +242,9 @@ func (b *BgpServer) DeletePath(prefix string) error {
 	err = b.s.DeletePath(apiutil.DeletePathRequest{
 		Paths: []*apiutil.Path{
 			{
-				Family: bgp.RF_IPv4_UC,
-				Nlri:   nlri,
+				Family:     bgp.RF_IPv4_UC,
+				Nlri:       nlri,
+				Withdrawal: true, // skip GoBGP's nexthop-required check; this is a withdrawal
 			},
 		},
 	})
