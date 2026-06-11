@@ -14,7 +14,7 @@ import (
 
 type BgpServer struct {
 	s       *server.BgpServer
-	paths   map[string][]uint32 // prefix -> announced ASNs, for change detection
+	paths   map[string]uint32 // prefix -> announced origin AS, for change detection
 	nextHop string
 }
 
@@ -81,7 +81,7 @@ func Start(ctx context.Context, cfg *Config) (*BgpServer, error) {
 
 	return &BgpServer{
 		s:       s,
-		paths:   make(map[string][]uint32),
+		paths:   make(map[string]uint32),
 		nextHop: cfg.RouterID,
 	}, nil
 }
@@ -173,23 +173,11 @@ func (b *BgpServer) Stop(ctx context.Context) error {
 	return b.s.StopBgp(ctx, &api.StopBgpRequest{})
 }
 
-func asnsEqual(a, b []uint32) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // AddPath installs or updates a prefix. Returns (true, nil) if the path was
 // added or updated, (false, nil) if it was already current, or (false, err).
-func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
+func (b *BgpServer) AddPath(prefix string, asn uint32) (bool, error) {
 	if existing, ok := b.paths[prefix]; ok {
-		if asnsEqual(existing, asns) {
+		if existing == asn {
 			return false, nil
 		}
 		if err := b.DeletePath(prefix); err != nil {
@@ -212,11 +200,7 @@ func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
 		return false, fmt.Errorf("invalid next-hop %s: %v", b.nextHop, err)
 	}
 
-	segType := uint8(bgp.BGP_ASPATH_ATTR_TYPE_SEQ)
-	if len(asns) > 1 {
-		segType = uint8(bgp.BGP_ASPATH_ATTR_TYPE_SET)
-	}
-
+	// Single best origin AS, so always an AS_SEQUENCE (never an AS_SET).
 	_, err = b.s.AddPath(apiutil.AddPathRequest{
 		Paths: []*apiutil.Path{
 			{
@@ -226,7 +210,7 @@ func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
 					bgp.NewPathAttributeOrigin(bgp.BGP_ORIGIN_ATTR_TYPE_IGP),
 					nextHop,
 					bgp.NewPathAttributeAsPath([]bgp.AsPathParamInterface{
-						bgp.NewAs4PathParam(segType, asns),
+						bgp.NewAs4PathParam(uint8(bgp.BGP_ASPATH_ATTR_TYPE_SEQ), []uint32{asn}),
 					}),
 				},
 			},
@@ -236,7 +220,7 @@ func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
 		return false, fmt.Errorf("failed to add path for prefix %s: %v", prefix, err)
 	}
 
-	b.paths[prefix] = asns
+	b.paths[prefix] = asn
 	return true, nil
 }
 

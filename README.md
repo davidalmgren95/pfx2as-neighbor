@@ -5,9 +5,26 @@ BGP daemon that periodically downloads the CAIDA RouteViews prefix-to-AS mapping
 ## How it works
 
 - Downloads the latest prefix2as dataset from CAIDA on a configurable interval
-- Parses prefix/ASN mappings, handling multi-origin (MOAS) and AS_SET entries
+- Parses prefix/ASN mappings, announcing a single origin AS per prefix
 - Announces all prefixes to configured BGP neighbors via gobgp
 - On each refresh, removes stale prefixes and adds new ones without a full table flush
+
+### Origin AS selection
+
+CAIDA may list multiple origins for a prefix in two distinct notations:
+
+- **Multi-origin (MOAS, `as1_as2`)** — separate ASes that each independently
+  announce the prefix, listed most-frequent first. We announce the first (most
+  frequent) AS as a normal AS_SEQUENCE, matching CAIDA's "pick the first listed
+  AS" guidance.
+- **AS_SET (`as1,as2`)** — a single aggregated route whose origin is a set. We
+  **skip these prefixes entirely**. An AS_SET origin means aggregation upstream
+  destroyed the true origin, so there is no principled AS to announce; CAIDA
+  does not even define an order for the set's members. Emitting an AS_SET is
+  also discouraged by [RFC 6472](https://www.rfc-editor.org/rfc/rfc6472)
+  because it breaks RPKI origin validation.
+
+In all cases we announce at most one origin AS per prefix, never an AS_SET.
 
 ## Building
 
