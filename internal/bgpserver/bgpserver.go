@@ -6,21 +6,15 @@ import (
 	"log/slog"
 	"net/netip"
 
-	"github.com/google/uuid"
 	"github.com/osrg/gobgp/v4/api"
 	"github.com/osrg/gobgp/v4/pkg/apiutil"
 	"github.com/osrg/gobgp/v4/pkg/packet/bgp"
 	"github.com/osrg/gobgp/v4/pkg/server"
 )
 
-type pathEntry struct {
-	id   uuid.UUID
-	asns []uint32
-}
-
 type BgpServer struct {
 	s       *server.BgpServer
-	paths   map[string]pathEntry
+	paths   map[string][]uint32 // prefix -> announced ASNs, for change detection
 	nextHop string
 }
 
@@ -87,7 +81,7 @@ func Start(ctx context.Context, cfg *Config) (*BgpServer, error) {
 
 	return &BgpServer{
 		s:       s,
-		paths:   make(map[string]pathEntry),
+		paths:   make(map[string][]uint32),
 		nextHop: cfg.RouterID,
 	}, nil
 }
@@ -195,7 +189,7 @@ func asnsEqual(a, b []uint32) bool {
 // added or updated, (false, nil) if it was already current, or (false, err).
 func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
 	if existing, ok := b.paths[prefix]; ok {
-		if asnsEqual(existing.asns, asns) {
+		if asnsEqual(existing, asns) {
 			return false, nil
 		}
 		if err := b.DeletePath(prefix); err != nil {
@@ -223,7 +217,7 @@ func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
 		segType = uint8(bgp.BGP_ASPATH_ATTR_TYPE_SET)
 	}
 
-	resps, err := b.s.AddPath(apiutil.AddPathRequest{
+	_, err = b.s.AddPath(apiutil.AddPathRequest{
 		Paths: []*apiutil.Path{
 			{
 				Family: bgp.RF_IPv4_UC,
@@ -242,18 +236,32 @@ func (b *BgpServer) AddPath(prefix string, asns []uint32) (bool, error) {
 		return false, fmt.Errorf("failed to add path for prefix %s: %v", prefix, err)
 	}
 
-	b.paths[prefix] = pathEntry{id: resps[0].UUID, asns: asns}
+	b.paths[prefix] = asns
 	return true, nil
 }
 
 func (b *BgpServer) DeletePath(prefix string) error {
-	entry, ok := b.paths[prefix]
-	if !ok {
+	if _, ok := b.paths[prefix]; !ok {
 		return fmt.Errorf("no path found for prefix: %s", prefix)
 	}
 
-	err := b.s.DeletePath(apiutil.DeletePathRequest{
-		UUIDs: []uuid.UUID{entry.id},
+	p, err := netip.ParsePrefix(prefix)
+	if err != nil {
+		return fmt.Errorf("invalid prefix %s: %v", prefix, err)
+	}
+
+	nlri, err := bgp.NewIPAddrPrefix(p)
+	if err != nil {
+		return fmt.Errorf("failed to create NLRI for prefix %s: %v", prefix, err)
+	}
+
+	err = b.s.DeletePath(apiutil.DeletePathRequest{
+		Paths: []*apiutil.Path{
+			{
+				Family: bgp.RF_IPv4_UC,
+				Nlri:   nlri,
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete path for prefix %s: %v", prefix, err)
