@@ -21,19 +21,19 @@ func TestParse(t *testing.T) {
 		{"moas.pfx2as.gz",
 			map[string]uint32{
 				"45.12.83.0/24":   45758,
-				"38.182.141.0/24":   60781,
-				"100.64.0.0/10": 16509,
+				"38.182.141.0/24": 60781,
+				"100.64.0.0/10":   16509,
 			},
 		},
 		{"as-set.pfx2as.gz",
 			map[string]uint32{
-				"23.4.80.0/23":   9605,
+				"23.4.80.0/23": 9605,
 			},
 		},
 		{"malformed.pfx2as.gz", map[string]uint32{}},
 		{"duplicate.pfx2as.gz",
 			map[string]uint32{
-				"5.5.5.0/24":   2222,
+				"5.5.5.0/24": 2222,
 			},
 		},
 		{"empty.pfx2as.gz", map[string]uint32{}},
