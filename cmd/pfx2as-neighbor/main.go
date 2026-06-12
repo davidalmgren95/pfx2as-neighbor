@@ -118,21 +118,21 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		
+
 		// Initial update
 		updateRoutes(server)
 
-      	ticker := time.NewTicker(interval)
-      	defer ticker.Stop()
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
 
-      	for {
-      	    select {
-      	    case <-ticker.C:
+		for {
+			select {
+			case <-ticker.C:
 				updateRoutes(server)
-      	    case <-ctx.Done():
-      	        return
-      	    }
-      	}
+			case <-ctx.Done():
+				return
+			}
+		}
 	}()
 
 	<-ctx.Done()
