@@ -1,0 +1,15 @@
+#!/bin/sh
+# Pre-commit hook: enforce gofmt and run unit tests.
+set -e
+
+echo "pre-commit: checking gofmt..."
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+	echo "The following files are not gofmt-clean:"
+	echo "$unformatted"
+	echo "Run 'gofmt -w .' (or 'make fmt') and re-stage."
+	exit 1
+fi
+
+echo "pre-commit: running tests..."
+go test ./...
