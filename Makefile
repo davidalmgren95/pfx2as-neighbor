@@ -11,3 +11,6 @@ build:
 
 build-deb: build
 	VERSION=$(VERSION) nfpm package --packager deb --target ./dist/
+
+test:
+	go test -v ./...
