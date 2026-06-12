@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -39,6 +40,14 @@ func Parse(r io.ReadCloser) (map[string]uint32, error) {
 			continue
 		}
 
+		str_prefix := fmt.Sprintf("%s/%s", fields[0], fields[1])
+
+		prefix, err := netip.ParsePrefix(str_prefix)
+		if err != nil || !prefix.Addr().Is4() {
+			slog.Warn("skipping line with unparseable or non-IPv4 prefix", "prefix", str_prefix)
+			continue
+		}
+
 		// MOAS origins ("_" notation) are listed most-frequent first; take the
 		// first as the single best origin. Avoids emitting AS_SETs (RFC 6472).
 		first := strings.SplitN(fields[2], "_", 2)[0]
@@ -55,7 +64,7 @@ func Parse(r io.ReadCloser) (map[string]uint32, error) {
 			continue
 		}
 
-		records[fmt.Sprintf("%s/%s", fields[0], fields[1])] = uint32(asn)
+		records[str_prefix] = uint32(asn)
 	}
 
 	return records, nil
