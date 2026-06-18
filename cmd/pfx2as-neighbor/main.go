@@ -125,6 +125,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// SIGUSR1: check for a new prefix2as file out of cycle (downloads only if a
+	// newer one is available). SIGUSR2: force a re-download even if unchanged.
+	sigRefresh := make(chan os.Signal, 1)
+	sigForce := make(chan os.Signal, 1)
+	signal.Notify(sigRefresh, syscall.SIGUSR1)
+	signal.Notify(sigForce, syscall.SIGUSR2)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -140,6 +147,12 @@ func main() {
 			select {
 			case <-ticker.C:
 				lastURL = updateRoutes(server, lastURL)
+			case <-sigRefresh:
+				slog.Info("received SIGUSR1, checking for new prefix2as data")
+				lastURL = updateRoutes(server, lastURL)
+			case <-sigForce:
+				slog.Info("received SIGUSR2, forcing prefix2as re-download")
+				lastURL = updateRoutes(server, "")
 			case <-ctx.Done():
 				return
 			}

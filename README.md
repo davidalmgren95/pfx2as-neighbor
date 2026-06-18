@@ -9,6 +9,11 @@ BGP daemon that periodically downloads the CAIDA RouteViews prefix-to-AS mapping
 - Announces all prefixes to configured BGP neighbors via gobgp
 - On each refresh, removes stale prefixes and adds new ones without a full table flush
 
+### Signals
+
+- `SIGUSR1` — check for a new prefix2as file immediately (downloads only if a newer one is available)
+- `SIGUSR2` — force a re-download of the latest file even if it is unchanged
+
 ### Origin AS selection
 
 CAIDA may list multiple origins for a prefix in two distinct notations:

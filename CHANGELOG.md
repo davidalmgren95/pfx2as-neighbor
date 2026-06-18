@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2] - 2026-06-18
+
+### Added
+- Respond to `SIGUSR1` by checking for a new prefix2as file out of cycle
+  (downloads only if a newer one is available), and to `SIGUSR2` by forcing a
+  re-download of the latest file even if it is unchanged.
+
 ## [1.0.1] - 2026-06-18
 
 ### Changed
