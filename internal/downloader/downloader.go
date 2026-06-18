@@ -89,22 +89,27 @@ func findLatestPrefix2ASURL() (string, error) {
 	return fmt.Sprintf("%s/%s/%s/%s", baseURL, latestYear, latestMonth, latestFile), nil
 }
 
-// DownloadLatestPrefix2AS retrieves the latest prefix2AS file from the CAIDA
-// RouteViews dataset. The caller is responsible for closing the returned body.
-func DownloadLatestPrefix2AS() (io.ReadCloser, error) {
-	latestFileURL, err := findLatestPrefix2ASURL()
+// LatestPrefix2ASURL returns the URL of the latest prefix2AS file in the CAIDA
+// RouteViews dataset.
+func LatestPrefix2ASURL() (string, error) {
+	url, err := findLatestPrefix2ASURL()
 	if err != nil {
-		return nil, fmt.Errorf("finding latest prefix2AS URL: %w", err)
+		return "", fmt.Errorf("finding latest prefix2AS URL: %w", err)
 	}
+	return url, nil
+}
 
-	slog.Info("downloading prefix2as file", "url", latestFileURL)
-	resp, err := httpClient.Get(latestFileURL)
+// Download fetches the file at the given URL. The caller is responsible for
+// closing the returned body.
+func Download(url string) (io.ReadCloser, error) {
+	slog.Info("downloading prefix2as file", "url", url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("downloading file %s: %w", latestFileURL, err)
+		return nil, fmt.Errorf("downloading file %s: %w", url, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP request to %s returned status code %d", latestFileURL, resp.StatusCode)
+		return nil, fmt.Errorf("HTTP request to %s returned status code %d", url, resp.StatusCode)
 	}
 
 	return resp.Body, nil

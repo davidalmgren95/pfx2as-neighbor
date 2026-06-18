@@ -18,20 +18,30 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func updateRoutes(server *bgpserver.BgpServer) {
-	slog.Info("fetching latest CAIDA prefix2as data")
+func updateRoutes(server *bgpserver.BgpServer, lastURL string) string {
+	slog.Info("checking for latest CAIDA prefix2as data")
 
-	body, err := downloader.DownloadLatestPrefix2AS()
+	url, err := downloader.LatestPrefix2ASURL()
+	if err != nil {
+		slog.Error("failed to find latest prefix2as URL", "err", err)
+		return lastURL
+	}
+	if url == lastURL {
+		slog.Info("prefix2as data unchanged, skipping download", "url", url)
+		return lastURL
+	}
+
+	body, err := downloader.Download(url)
 	if err != nil {
 		slog.Error("failed to download prefix2as data", "err", err)
-		return
+		return lastURL
 	}
 	defer body.Close()
 
 	records, err := gzparser.Parse(body)
 	if err != nil {
 		slog.Error("failed to parse prefix2as data", "err", err)
-		return
+		return lastURL
 	}
 	slog.Info("parsed prefix2as data", "prefixes", len(records))
 
@@ -63,6 +73,7 @@ func updateRoutes(server *bgpserver.BgpServer) {
 		"active", len(server.ActivePrefixes()),
 		"errors", errs,
 	)
+	return url
 }
 
 func main() {
@@ -120,7 +131,7 @@ func main() {
 		defer wg.Done()
 
 		// Initial update
-		updateRoutes(server)
+		lastURL := updateRoutes(server, "")
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
@@ -128,7 +139,7 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				updateRoutes(server)
+				lastURL = updateRoutes(server, lastURL)
 			case <-ctx.Done():
 				return
 			}
